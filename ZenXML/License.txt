@@ -1,0 +1,13 @@
+Copyright (c) 2024 Alyse Z. / Blackwell Technological Solutions. All rights reserved.
+
+This software, its source code, assets, and all associated files are proprietary and confidential.
+
+**Permission is granted to view this repository for the sole purpose of evaluation or employment consideration.**
+No part of this project may be copied, distributed, sublicensed, or used for any commercial, educational, or personal purpose without explicit written permission from the owner.
+
+For access, licensing, or commercial use, contact:
+support@blackwell-tech.online
+
+---
+
+Violators will be subject to copyright law.
