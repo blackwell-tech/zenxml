@@ -41,7 +41,7 @@
     form { margin-bottom: 20px; }
     .explainer {
       color:#497ca5; background:#f2f8fd; border-radius:9px;
-      padding:11px 14px; margin: 18px 0 30px 0; font-size:0.85em;
+      padding:11px 14px; margin: 18px 0 30px 0; font-size:0.65em;
       border-left:4px solid #3a8edb;
       text-align:left;
       line-height:1.5;
@@ -92,7 +92,7 @@
     .footer {
       margin-top: 40px;
       color: #b3c7d9;
-      font-size: 0.83em;
+      font-size: 0.55em;
       text-align: center;
       line-height: 1.5;
       letter-spacing: 0.01em;
@@ -124,7 +124,7 @@
         width: 60vw;
       }
       .explainer {
-        font-size: 0.95em;
+        font-size: 0.60em;
         padding: 10px 6px;
         margin: 10px 0 16px 0;
       }
@@ -151,98 +151,208 @@
     }
   </style>
   <script>
-    function toggleTheme() {
-      document.body.classList.toggle('dark');
-      document.cookie = "zenxml_theme=" + (document.body.classList.contains('dark') ? 'dark' : 'light') + ";path=/";
-      document.getElementById('themeToggle').textContent = document.body.classList.contains('dark') ? "☀️" : "🌙";
-    }
-    window.onload = function() {
-      var match = document.cookie.match(/zenxml_theme=(dark|light)/);
-      if (match && match[1] === "dark") {
-        document.body.classList.add("dark");
-        document.getElementById('themeToggle').textContent = "☀️";
-      }
-      fetch('https://zenquotes.io/api/random')
-        .then(response => response.json())
-        .then(data => {
-          document.getElementById('quote').textContent = `"${data[0].q}" —${data[0].a}`;
-        })
-        .catch(() => {
-          document.getElementById('quote').textContent = "ZenXML: Flatten the curve—of your data structure.";
-        });
-    }
+function toggleTheme() {
+  document.body.classList.toggle('dark');
+  document.cookie = "zenxml_theme=" + (document.body.classList.contains('dark') ? 'dark' : 'light') + ";path=/";
+  document.getElementById('themeToggle').textContent = document.body.classList.contains('dark') ? "☀️" : "🌙";
+}
+window.onload = function() {
+  var match = document.cookie.match(/zenxml_theme=(dark|light)/);
+  if (match && match[1] === "dark") {
+    document.body.classList.add("dark");
+    document.getElementById('themeToggle').textContent = "☀️";
+  }
+  fetch('https://zenquotes.io/api/random')
+    .then(response => response.json())
+    .then(data => {
+      document.getElementById('quote').textContent = `"${data[0].q}" —${data[0].a}`;
+    })
+    .catch(() => {
+      document.getElementById('quote').textContent = "ZenXML: Flatten the curve—of your data structure.";
+    });
+}
 
-    function cleanXML(xmlStr, removeEmpty) {
-      // Use DOMParser for more valid XML cleaning
-      try {
-        let parser = new DOMParser();
-        let xmlDoc = parser.parseFromString(xmlStr, "application/xml");
-        let all = xmlDoc.querySelectorAll('*');
-        all.forEach(node => {
-          [...node.attributes].forEach(attr => node.removeAttribute(attr.name));
+// Remove all XML attributes
+function cleanXML(xmlStr, removeEmpty) {
+  try {
+    let parser = new DOMParser();
+    let xmlDoc = parser.parseFromString(xmlStr, "application/xml");
+    let all = xmlDoc.querySelectorAll('*');
+    all.forEach(node => {
+      [...node.attributes].forEach(attr => node.removeAttribute(attr.name));
+    });
+    if (removeEmpty) {
+      all.forEach(node => {
+        [...node.attributes].forEach(attr => {
+          if (attr.value === "") node.removeAttribute(attr.name);
         });
-        if (removeEmpty) {
-          all.forEach(node => {
-            [...node.attributes].forEach(attr => {
-              if (attr.value === "") node.removeAttribute(attr.name);
-            });
-          });
+      });
+    }
+    let serializer = new XMLSerializer();
+    let cleanXmlStr = serializer.serializeToString(xmlDoc);
+    return cleanXmlStr;
+  } catch(e) {
+    return xmlStr;
+  }
+}
+
+// XML to JSON
+function xmlToJson(xml) {
+  let obj = {};
+  if (xml.nodeType === 1) {
+    if (xml.hasChildNodes()) {
+      let text = "";
+      let hasElement = false;
+      for (let i=0; i<xml.childNodes.length; i++) {
+        let item = xml.childNodes.item(i);
+        if (item.nodeType === 3) { // text
+          text += item.nodeValue.trim();
+        } else if (item.nodeType === 1) {
+          hasElement = true;
+          let nodeName = item.nodeName;
+          if (!obj[nodeName]) {
+            obj[nodeName] = xmlToJson(item);
+          } else {
+            if (!Array.isArray(obj[nodeName])) {
+              obj[nodeName] = [obj[nodeName]];
+            }
+            obj[nodeName].push(xmlToJson(item));
+          }
         }
-        let serializer = new XMLSerializer();
-        let cleanXmlStr = serializer.serializeToString(xmlDoc);
-        return cleanXmlStr;
-      } catch(e) {
-        // fallback
-        return xmlStr;
+      }
+      if (!hasElement && text.length > 0) {
+        return text;
       }
     }
+  }
+  return obj;
+}
 
-    function handleFileUpload(e) {
-      e.preventDefault();
-      const fileInput = document.querySelector('input[name="xmlfile"]');
-      if (!fileInput.files.length) return;
-      const file = fileInput.files[0];
-      const reader = new FileReader();
-      const removeEmpty = document.querySelector('input[name="remove_empty"]').checked;
-      const outputFormat = document.querySelector('select[name="output_format"]').value;
-      reader.onload = function(evt) {
-        let cleaned;
-        if (outputFormat === "xml") {
-          cleaned = cleanXML(evt.target.result, removeEmpty);
-        } else if (outputFormat === "json") {
-          cleaned = '{"message":"JSON output is coming soon!"}';
-        } else if (outputFormat === "csv") {
-          cleaned = "CSV output is coming soon!";
-        } else {
-          cleaned = cleanXML(evt.target.result, removeEmpty);
-        }
-        let fname = file.name;
-        let dot = fname.lastIndexOf('.');
-        if(dot === -1) dot = fname.length;
-        let ext = (outputFormat === "xml") ? ".xml" : (outputFormat === "json") ? ".json" : ".csv";
-        const newName = fname.substring(0,dot) + "_cleaned" + ext;
-        const blob = new Blob([cleaned], {type:'text/plain'});
-        const url = URL.createObjectURL(blob);
-        const link = document.getElementById('download-link');
-        link.href = url;
-        link.download = newName;
-        link.style.display = 'inline-block';
-        link.textContent = "Download cleaned " + outputFormat.toUpperCase();
-        link.setAttribute('aria-label', 'Download cleaned file');
-      };
-      reader.readAsText(file);
+// XML to CSV (basic flattening)
+function xmlToCsv(xmlStr) {
+  try {
+    let parser = new DOMParser();
+    let xmlDoc = parser.parseFromString(xmlStr, "application/xml");
+    let headersSet = new Set(["Tag", "Path", "Value"]);
+    let allRows = [];
+
+    // First pass: collect all attribute names
+    function collectAttributes(node) {
+      if (node.nodeType !== 1) return;
+      for (let attr of node.attributes) {
+        headersSet.add(attr.name);
+      }
+      for (let child of node.children) {
+        collectAttributes(child);
+      }
     }
-  </script>
+    collectAttributes(xmlDoc.documentElement);
+
+    let headers = Array.from(headersSet);
+
+    // Second pass: walk tree and collect each element
+    function walk(node, path) {
+      if (node.nodeType !== 1) return;
+      let row = {};
+      row["Tag"] = node.nodeName;
+      row["Path"] = path;
+      // If the node has only text (no element children), that's its value
+      let hasElementChildren = Array.from(node.childNodes).some(
+        n => n.nodeType === 1
+      );
+      if (!hasElementChildren) {
+        row["Value"] = node.textContent.trim();
+      } else {
+        row["Value"] = "";
+      }
+      // Add all attributes to the row
+      for (let attr of node.attributes) {
+        row[attr.name] = attr.value;
+      }
+      allRows.push(row);
+      // Walk children
+      for (let child of node.children) {
+        walk(child, path + "/" + child.nodeName);
+      }
+    }
+    walk(xmlDoc.documentElement, xmlDoc.documentElement.nodeName);
+
+    // Build the CSV rows
+    let csvRows = [];
+    csvRows.push(headers);
+    allRows.forEach(row => {
+      csvRows.push(headers.map(h => (row[h] !== undefined ? row[h] : "")));
+    });
+
+    // Encode as CSV string
+    return csvRows
+      .map(row =>
+        row
+          .map(cell => `"${(cell || "").replace(/"/g, '""')}"`)
+          .join(",")
+      )
+      .join("\n");
+  } catch (e) {
+    return "Error converting XML to CSV";
+  }
+}
+
+
+
+
+function handleFileUpload(e) {
+  e.preventDefault();
+  const fileInput = document.querySelector('input[name="xmlfile"]');
+  if (!fileInput.files.length) return;
+  const file = fileInput.files[0];
+  const reader = new FileReader();
+  const removeEmpty = document.querySelector('input[name="remove_empty"]').checked;
+  const outputFormat = document.querySelector('select[name="output_format"]').value;
+  reader.onload = function(evt) {
+    let cleaned;
+    if (outputFormat === "xml") {
+      cleaned = cleanXML(evt.target.result, removeEmpty);
+    } else if (outputFormat === "json") {
+      let xmlCleaned = cleanXML(evt.target.result, removeEmpty);
+      let parser = new DOMParser();
+      let xmlDoc = parser.parseFromString(xmlCleaned, "application/xml");
+      let obj = {};
+      obj[xmlDoc.documentElement.nodeName] = xmlToJson(xmlDoc.documentElement);
+      cleaned = JSON.stringify(obj, null, 2);
+    } else if (outputFormat === "csv") {
+      let xmlCleaned = cleanXML(evt.target.result, removeEmpty);
+      cleaned = xmlToCsv(xmlCleaned);
+    } else {
+      cleaned = cleanXML(evt.target.result, removeEmpty);
+    }
+    let fname = file.name;
+    let dot = fname.lastIndexOf('.');
+    if(dot === -1) dot = fname.length;
+    let ext = (outputFormat === "xml") ? ".xml" : (outputFormat === "json") ? ".json" : ".csv";
+    const newName = fname.substring(0,dot) + "_cleaned" + ext;
+    const blob = new Blob([cleaned], {type:'text/plain'});
+    const url = URL.createObjectURL(blob);
+    const link = document.getElementById('download-link');
+    link.href = url;
+    link.download = newName;
+    link.style.display = 'inline-block';
+    link.textContent = "Download cleaned " + outputFormat.toUpperCase();
+    link.setAttribute('aria-label', 'Download cleaned file');
+  };
+  reader.readAsText(file);
+}
+</script>
+
 </head>
 <body>
   <button class="theme-toggle" id="themeToggle" onclick="toggleTheme()" aria-label="Toggle dark mode">🌙</button>
   <div class="main">
     <div class="logo-header">
-      <img src="zenxml-logo.png" alt="ZenXML Logo">
+      <img src="/storage/app/media/zenxml-logo.png" alt="ZenXML Logo">
     </div>
     <div class="quote" id="quote">ZenXML: Find peace in your data.</div>
     <form onsubmit="handleFileUpload(event)">
-      <div class="explainer" style="font-size:0.85em; color:#497ca5;">
+      <div class="explainer" style="font-size:0.70em; color:#497ca5;">
         This tool removes all attributes from every XML tag, no matter what the tag is called. Example: <code>&lt;data attachment="letgo"&gt;</code> becomes <code>&lt;data&gt;</code> – because even data needs to let go of attachments.
       </div>
       <input type="file" name="xmlfile" accept=".xml" required>
@@ -254,7 +364,7 @@
               Remove all empty attributes?
             </label>
           </div>
-          <div style="font-size:0.85em; font-style:italic; color:#497ca5; text-align:left; margin-top:6px; margin-left:8px;">
+          <div style="font-size:0.55em; font-style:italic; color:#497ca5; text-align:left; margin-top:6px; margin-left:8px;">
             *If checked, also removes empty attributes like <code>foo=""</code> for extra cleaning and works for any XML—nested or flat.
           </div>
         </div>
